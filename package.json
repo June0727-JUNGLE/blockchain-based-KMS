@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "main": "hardhat.config.js",
   "scripts": {
+    "compile": "hardhat compile",
     "test": "hardhat test"
   },
   "keywords": [],
