@@ -1,0 +1,709 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>MultiSig-KMS</title>
+  <style>
+    :root {
+      --emp-bg: #eef4fb;
+      --emp-surface: #ffffff;
+      --emp-primary: #1d4ed8;
+      --emp-primary-light: #dbeafe;
+      --emp-text: #0f172a;
+      --emp-muted: #64748b;
+      --emp-border: #cbd5e1;
+      --ctrl-bg: #0a0e14;
+      --ctrl-surface: #121820;
+      --ctrl-border: #2a3548;
+      --ctrl-text: #e2e8f0;
+      --ctrl-muted: #94a3b8;
+      --ctrl-accent: #22d3ee;
+      --ctrl-accent2: #34d399;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    body {
+      font-family: "Segoe UI", "Apple SD Gothic Neo", sans-serif;
+      min-height: 100vh;
+      transition: background 0.3s;
+    }
+    body.mode-employee {
+      background: linear-gradient(160deg, var(--emp-bg) 0%, #e0ecff 100%);
+      color: var(--emp-text);
+    }
+    body.mode-control {
+      background: var(--ctrl-bg);
+      color: var(--ctrl-text);
+    }
+    body.mode-none, body.mode-connect {
+      background: #0f172a;
+      color: #e2e8f0;
+    }
+    .app-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      flex-wrap: wrap;
+      gap: 1rem;
+      padding: 1rem 1.5rem;
+      border-bottom: 1px solid;
+    }
+    body.mode-employee .app-header {
+      background: var(--emp-surface);
+      border-color: var(--emp-border);
+    }
+    body.mode-control .app-header {
+      background: linear-gradient(90deg, #0f172a, #1e1b4b);
+      border-color: var(--ctrl-border);
+    }
+    body.mode-none .app-header, body.mode-connect .app-header {
+      background: #1e293b;
+      border-color: #334155;
+    }
+    .app-header h1 { font-size: 1.1rem; font-weight: 700; }
+    body.mode-employee .app-header h1 { color: var(--emp-primary); }
+    body.mode-control .app-header h1 { color: var(--ctrl-accent); }
+    .app-header p { font-size: 0.78rem; opacity: 0.75; margin-top: 0.2rem; }
+    .header-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.6rem;
+      align-items: center;
+    }
+    .mono {
+      font-family: "Cascadia Code", Consolas, monospace;
+      font-size: 0.78rem;
+      word-break: break-all;
+    }
+    button {
+      cursor: pointer;
+      border: none;
+      border-radius: 8px;
+      padding: 0.55rem 1rem;
+      font-size: 0.85rem;
+      font-weight: 600;
+    }
+    .btn-connect {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+    }
+    .btn-disconnect {
+      background: transparent;
+      border: 1px solid;
+      font-size: 0.78rem;
+      padding: 0.4rem 0.75rem;
+    }
+    body.mode-employee .btn-disconnect { border-color: var(--emp-border); color: var(--emp-muted); }
+    body.mode-control .btn-disconnect { border-color: var(--ctrl-border); color: var(--ctrl-muted); }
+    .role-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.25rem 0.6rem;
+      border-radius: 999px;
+    }
+    .role-admin { background: #312e81; color: #a5b4fc; }
+    .role-approver { background: #164e63; color: #22d3ee; }
+    .role-employee { background: #dbeafe; color: #1d4ed8; }
+    .role-none { background: #3f3f46; color: #a1a1aa; }
+    main { max-width: 1200px; margin: 0 auto; padding: 1.25rem; }
+    .connect-screen, .no-access-screen {
+      text-align: center;
+      padding: 3rem 1.5rem;
+      max-width: 520px;
+      margin: 2rem auto;
+    }
+    .connect-screen h2, .no-access-screen h2 { font-size: 1.25rem; margin-bottom: 0.75rem; }
+    .connect-screen p, .no-access-screen p {
+      font-size: 0.88rem;
+      line-height: 1.6;
+      color: #94a3b8;
+      margin-bottom: 1.5rem;
+    }
+    .account-hints {
+      text-align: left;
+      background: #1e293b;
+      border: 1px solid #334155;
+      border-radius: 12px;
+      padding: 1rem;
+      font-size: 0.78rem;
+      line-height: 1.7;
+      margin-top: 1.5rem;
+    }
+  </style>
+  <style>
+    /* 직원 모드 */
+    .employee-wrap { display: flex; flex-direction: column; gap: 1.25rem; }
+    .emp-card {
+      background: var(--emp-surface);
+      border: 1px solid var(--emp-border);
+      border-radius: 14px;
+      padding: 1.25rem 1.5rem;
+      box-shadow: 0 4px 20px rgba(29, 78, 216, 0.06);
+    }
+    .emp-card h2 { font-size: 0.95rem; margin-bottom: 0.5rem; }
+    .emp-hint { font-size: 0.78rem; color: var(--emp-muted); margin-bottom: 1rem; }
+    .doc-grid {
+      display: grid;
+      grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+      gap: 0.85rem;
+    }
+    .doc-card {
+      text-align: left;
+      background: #f8fafc;
+      border: 1px solid var(--emp-border);
+      border-radius: 12px;
+      padding: 1rem;
+      cursor: pointer;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+    .doc-card:hover {
+      border-color: var(--emp-primary);
+      box-shadow: 0 4px 16px rgba(29, 78, 216, 0.12);
+    }
+    .doc-card-top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 0.5rem;
+      margin-bottom: 0.5rem;
+    }
+    .doc-card strong { font-size: 0.88rem; }
+    .doc-card-id { color: var(--emp-muted); font-size: 0.72rem; }
+    .tier-badge {
+      font-size: 0.68rem;
+      font-weight: 700;
+      padding: 0.15rem 0.45rem;
+      border-radius: 999px;
+      flex-shrink: 0;
+    }
+    .tier-badge.normal { background: #dbeafe; color: #1d4ed8; }
+    .tier-badge.secure { background: #fef3c7; color: #b45309; }
+    .request-list { display: flex; flex-direction: column; gap: 0.6rem; }
+    .request-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 0.75rem;
+      border: 1px solid var(--emp-border);
+      border-radius: 10px;
+    }
+    .request-meta { font-size: 0.72rem; color: var(--emp-muted); margin-top: 0.2rem; }
+    .status-badge {
+      font-size: 0.72rem;
+      font-weight: 600;
+      padding: 0.2rem 0.5rem;
+      border-radius: 999px;
+    }
+    .status-badge.pending { background: #e0f2fe; color: #0369a1; }
+    .status-badge.progress { background: #fef3c7; color: #b45309; }
+    .status-badge.done { background: #dcfce7; color: #15803d; }
+    .status-badge.unknown { background: #f1f5f9; color: #64748b; }
+    .emp-empty { text-align: center; color: var(--emp-muted); padding: 1.5rem; font-size: 0.85rem; }
+    .emp-error { color: #b91c1c; font-size: 0.82rem; padding: 1rem; }
+    .emp-modal { position: fixed; inset: 0; z-index: 100; display: flex; align-items: center; justify-content: center; }
+    .emp-modal[hidden] { display: none; }
+    .emp-modal-backdrop { position: absolute; inset: 0; background: rgba(15, 23, 42, 0.5); }
+    .emp-modal-panel {
+      position: relative;
+      background: #fff;
+      border-radius: 14px;
+      width: min(720px, 92vw);
+      max-height: 80vh;
+      display: flex;
+      flex-direction: column;
+      box-shadow: 0 20px 60px rgba(0,0,0,0.2);
+    }
+    .emp-modal-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      padding: 1rem 1.25rem;
+      border-bottom: 1px solid var(--emp-border);
+    }
+    .emp-modal-body {
+      padding: 1.25rem;
+      overflow: auto;
+      font-size: 0.82rem;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      font-family: Consolas, monospace;
+    }
+    .emp-btn-secondary {
+      background: #f1f5f9;
+      color: var(--emp-text);
+      border: 1px solid var(--emp-border);
+      padding: 0.4rem 0.8rem;
+      font-size: 0.8rem;
+    }
+  </style>
+  <style>
+    /* 관제 모드 */
+    .control-wrap { display: flex; flex-direction: column; gap: 1rem; }
+    .ctrl-tabs { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+    .ctrl-tab {
+      background: var(--ctrl-surface);
+      border: 1px solid var(--ctrl-border);
+      color: var(--ctrl-muted);
+      padding: 0.5rem 1rem;
+      font-size: 0.82rem;
+    }
+    .ctrl-tab.active {
+      background: #1e3a5f;
+      color: var(--ctrl-accent);
+      border-color: var(--ctrl-accent);
+    }
+    .ctrl-panel {
+      background: var(--ctrl-surface);
+      border: 1px solid var(--ctrl-border);
+      border-radius: 12px;
+      padding: 1rem 1.15rem;
+    }
+    .ctrl-panel-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 0.5rem;
+    }
+    .ctrl-panel h2 { font-size: 0.88rem; color: var(--ctrl-accent); margin-bottom: 0.75rem; }
+    .ctrl-hint { font-size: 0.72rem; color: var(--ctrl-muted); margin-bottom: 0.75rem; line-height: 1.5; }
+    .live-dot {
+      font-size: 0.65rem;
+      background: #14532d;
+      color: var(--ctrl-accent2);
+      padding: 0.15rem 0.4rem;
+      border-radius: 999px;
+      margin-left: 0.4rem;
+      animation: pulse 2s infinite;
+    }
+    @keyframes pulse { 0%,100%{opacity:1} 50%{opacity:0.6} }
+    .ctrl-audit-log {
+      width: 100%;
+      min-height: 320px;
+      max-height: 480px;
+      resize: vertical;
+      background: #05080c;
+      color: #4ade80;
+      border: 2px solid #166534;
+      border-radius: 8px;
+      padding: 0.85rem;
+      font-family: Consolas, monospace;
+      font-size: 0.72rem;
+      line-height: 1.55;
+    }
+    .ctrl-table-wrap { overflow-x: auto; }
+    .ctrl-table { width: 100%; border-collapse: collapse; font-size: 0.78rem; }
+    .ctrl-table th, .ctrl-table td {
+      text-align: left;
+      padding: 0.5rem 0.4rem;
+      border-bottom: 1px solid var(--ctrl-border);
+    }
+    .ctrl-table th { color: var(--ctrl-muted); font-weight: 500; }
+    .ctrl-empty { text-align: center; color: var(--ctrl-muted); padding: 1.2rem; }
+    .ctrl-manual { margin-top: 1rem; }
+    .ctrl-manual label { font-size: 0.75rem; color: var(--ctrl-muted); display: block; margin-bottom: 0.35rem; }
+    .ctrl-manual-row { display: flex; gap: 0.5rem; flex-wrap: wrap; align-items: center; }
+    .ctrl-manual input {
+      flex: 1;
+      min-width: 120px;
+      padding: 0.55rem;
+      background: var(--ctrl-bg);
+      border: 1px solid var(--ctrl-border);
+      border-radius: 8px;
+      color: var(--ctrl-text);
+      font-size: 0.85rem;
+    }
+    .ctrl-btn-approve {
+      background: linear-gradient(135deg, #059669, #10b981);
+      color: #fff;
+      font-size: 0.78rem;
+      padding: 0.45rem 0.8rem;
+    }
+    .ctrl-btn-grant {
+      background: linear-gradient(135deg, #2563eb, #1d4ed8);
+      color: #fff;
+    }
+    .ctrl-btn-revoke {
+      background: linear-gradient(135deg, #dc2626, #b91c1c);
+      color: #fff;
+    }
+    .ctrl-btn-dismiss {
+      background: transparent;
+      border: 1px solid var(--ctrl-border);
+      color: var(--ctrl-muted);
+      font-size: 0.78rem;
+      padding: 0.45rem 0.8rem;
+    }
+    .ctrl-status-on { color: var(--ctrl-accent2); font-weight: 600; }
+    .ctrl-status-off { color: #fbbf24; font-weight: 600; }
+    .ctrl-err { color: #f87171; font-size: 0.78rem; margin-top: 0.5rem; }
+  </style>
+  <style>
+    .toast {
+      position: fixed;
+      bottom: 1.5rem;
+      right: 1.5rem;
+      background: #0f172a;
+      color: #fff;
+      padding: 0.75rem 1rem;
+      border-radius: 8px;
+      font-size: 0.85rem;
+      opacity: 0;
+      transition: opacity 0.25s;
+      pointer-events: none;
+      max-width: 380px;
+      z-index: 200;
+    }
+    .toast.show { opacity: 1; }
+    .account-mismatch {
+      background: #fef3c7;
+      color: #92400e;
+      border-bottom: 1px solid #fbbf24;
+      padding: 0.65rem 1.5rem;
+      font-size: 0.82rem;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 0.75rem;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .account-mismatch button {
+      background: #b45309;
+      color: #fff;
+      font-size: 0.78rem;
+      padding: 0.4rem 0.75rem;
+    }
+  </style>
+</head>
+<body class="mode-connect">
+  <div id="accountMismatch" class="account-mismatch" hidden>
+    <span id="mismatchText">MetaMask 계정이 앱과 다릅니다.</span>
+    <button type="button" id="btnResync">현재 MetaMask 계정으로 다시 연결</button>
+  </div>
+  <header class="app-header">
+    <div>
+      <h1>MultiSig-KMS</h1>
+      <p id="headerSubtitle">지갑 연결 후 역할에 따라 화면이 자동 전환됩니다.</p>
+    </div>
+    <div class="header-actions">
+      <span id="roleBadge"></span>
+      <span id="walletAddr" class="mono" style="display:none;"></span>
+      <button id="btnConnect" class="btn-connect">MetaMask 연결</button>
+      <button id="btnDisconnect" class="btn-disconnect" style="display:none;">연결 해제</button>
+    </div>
+  </header>
+
+  <main>
+    <section id="connectScreen" class="connect-screen">
+      <h2>🔐 기업 문서 접근 통제</h2>
+      <p>
+        하나의 URL에서 MetaMask 계정만 바꿔 직원·관리자·결재자 시연을 진행합니다.<br />
+        Hardhat Local (Chain ID 31337) 네트워크가 필요합니다.
+      </p>
+      <button id="btnConnectMain" class="btn-connect">MetaMask 연결</button>
+      <div class="account-hints">
+        <strong>시연 계정 매핑</strong><br />
+        #0 Admin · #1~#3 Approver · #4 Requester (직원)<br />
+        <span class="mono" id="hintRequester"></span><br /><br />
+        <strong>계정 전환 방법</strong><br />
+        1. MetaMask에서 계정 선택 → 2. 앱에서 <strong>연결 해제</strong> → 3. <strong>MetaMask 연결</strong> 다시 클릭<br />
+        (MetaMask에 「연결되지 않음」이면 반드시 3번 필요)
+      </div>
+    </section>
+
+    <section id="noAccessScreen" class="no-access-screen" hidden>
+      <h2>🚫 접근 권한 없음</h2>
+      <p>
+        연결된 지갑은 Admin·Approver·화이트리스트에 등록되지 않았습니다.<br />
+        Admin(#0)의 <strong>접근 제어</strong> 탭 「접속 시도」 목록에 표시됩니다.<br />
+        Admin에게 <code>grantPermission</code> 승인을 요청하세요.
+      </p>
+    </section>
+
+    <div id="employeeRoot" hidden></div>
+    <div id="controlRoot" hidden></div>
+  </main>
+
+  <div id="toast" class="toast"></div>
+
+  <script src="https://cdn.jsdelivr.net/npm/ethers@6.13.4/dist/ethers.umd.min.js"></script>
+  <script src="./shared/config.js?v=10"></script>
+  <script src="./shared/kms-core.js?v=10"></script>
+  <script src="./shared/router.js?v=10"></script>
+  <script src="./shared/employee-view.js?v=10"></script>
+  <script src="./shared/control-view.js?v=10"></script>
+  <script>
+    const AppShell = {
+      address: null,
+      role: null,
+      activeView: null,
+      _connecting: false,
+      _disconnecting: false,
+      _accountChangeTimer: null,
+
+      els: {
+        body: document.body,
+        btnConnect: document.getElementById("btnConnect"),
+        btnConnectMain: document.getElementById("btnConnectMain"),
+        btnDisconnect: document.getElementById("btnDisconnect"),
+        walletAddr: document.getElementById("walletAddr"),
+        roleBadge: document.getElementById("roleBadge"),
+        headerSubtitle: document.getElementById("headerSubtitle"),
+        connectScreen: document.getElementById("connectScreen"),
+        noAccessScreen: document.getElementById("noAccessScreen"),
+        employeeRoot: document.getElementById("employeeRoot"),
+        controlRoot: document.getElementById("controlRoot"),
+        toast: document.getElementById("toast"),
+        accountMismatch: document.getElementById("accountMismatch"),
+        mismatchText: document.getElementById("mismatchText"),
+        btnResync: document.getElementById("btnResync"),
+      },
+
+      toast(msg) {
+        this.els.toast.textContent = msg;
+        this.els.toast.classList.add("show");
+        setTimeout(() => this.els.toast.classList.remove("show"), 3200);
+      },
+
+      setBodyMode(mode) {
+        this.els.body.className = `mode-${mode}`;
+      },
+
+      hideAllViews() {
+        this.els.connectScreen.hidden = true;
+        this.els.noAccessScreen.hidden = true;
+        this.els.employeeRoot.hidden = true;
+        this.els.controlRoot.hidden = true;
+      },
+
+      unmountActive() {
+        if (this.activeView === "employee") EmployeeView.unmount();
+        if (this.activeView === "control") ControlView.unmount();
+        this.activeView = null;
+      },
+
+      showConnect() {
+        this.stopAccountWatch();
+        this.unmountActive();
+        this.hideAllViews();
+        this.setBodyMode("connect");
+        this.els.connectScreen.hidden = false;
+        this.els.btnConnect.style.display = "";
+        this.els.btnConnectMain.style.display = "";
+        this.els.btnDisconnect.style.display = "none";
+        this.els.walletAddr.style.display = "none";
+        this.els.roleBadge.innerHTML = "";
+        this.els.headerSubtitle.textContent = "지갑 연결 후 역할에 따라 화면이 자동 전환됩니다.";
+      },
+
+      async onConnected(address, role) {
+        this.address = address;
+        this.role = role;
+        this.unmountActive();
+        this.hideAllViews();
+
+        const meta = KMSRouter.roleMeta(role);
+        const demoLabel = KMSRouter.demoAccountLabel(address);
+        this.els.roleBadge.innerHTML = `<span class="role-badge ${meta.cls}">${meta.icon} ${meta.label}</span>`;
+        this.els.walletAddr.textContent = demoLabel
+          ? `${demoLabel} · ${address}`
+          : address;
+        this.els.walletAddr.style.display = "";
+        this.els.btnConnect.style.display = "none";
+        this.els.btnConnectMain.style.display = "none";
+        this.els.btnDisconnect.style.display = "";
+
+        if (role === KMSRouter.ROLES.NONE) {
+          this.setBodyMode("none");
+          this.els.noAccessScreen.hidden = false;
+          this.els.headerSubtitle.textContent = "화이트리스트 미등록 계정";
+          KMSCore.registerAccessAttempt(address);
+          this.startAccountWatch();
+          return;
+        }
+
+        if (role === KMSRouter.ROLES.EMPLOYEE) {
+          this.setBodyMode("employee");
+          this.els.employeeRoot.hidden = false;
+          this.els.headerSubtitle.textContent = "일반·보안 문서 열람";
+          EmployeeView.mount(this.els.employeeRoot, address);
+          this.activeView = "employee";
+          this.startAccountWatch();
+          return;
+        }
+
+        this.setBodyMode("control");
+        this.els.controlRoot.hidden = false;
+        this.els.headerSubtitle.textContent =
+          role === KMSRouter.ROLES.ADMIN
+            ? "감사 모니터 · 접근 제어"
+            : "감사 모니터 · 결재";
+        ControlView.mount(this.els.controlRoot, address, role);
+        this.activeView = "control";
+        this.startAccountWatch();
+      },
+
+      hideMismatchBanner() {
+        this.els.accountMismatch.hidden = true;
+      },
+
+      showMismatchBanner(selectedAddress) {
+        const label = KMSRouter.demoAccountLabel(selectedAddress);
+        this.els.mismatchText.textContent = label
+          ? `MetaMask: ${label} — 앱은 다른 계정으로 연결 중입니다.`
+          : `MetaMask: ${selectedAddress} — 앱은 다른 계정으로 연결 중입니다.`;
+        this.els.accountMismatch.hidden = false;
+      },
+
+      startAccountWatch() {
+        if (this._accountWatch) clearInterval(this._accountWatch);
+        this._accountWatch = setInterval(() => {
+          const selected = window.ethereum?.selectedAddress;
+          if (!this.address || !selected) return;
+          if (selected.toLowerCase() !== this.address.toLowerCase()) {
+            this.showMismatchBanner(selected);
+          } else {
+            this.hideMismatchBanner();
+          }
+        }, 800);
+      },
+
+      stopAccountWatch() {
+        if (this._accountWatch) {
+          clearInterval(this._accountWatch);
+          this._accountWatch = null;
+        }
+        this.hideMismatchBanner();
+      },
+
+      setConnectLoading(loading) {
+        this._connecting = loading;
+        const label = loading ? "연결 중…" : "MetaMask 연결";
+        this.els.btnConnect.textContent = label;
+        this.els.btnConnectMain.textContent = label;
+        this.els.btnConnect.disabled = loading;
+        this.els.btnConnectMain.disabled = loading;
+      },
+
+      async establishSession(preferredAddress) {
+        this.unmountActive();
+        this.stopAccountWatch();
+        KMSCore.disconnectWallet();
+
+        const { address } = await KMSCore.connectWallet(preferredAddress);
+        const contract = KMSCore.getReadContract();
+        const role = await KMSRouter.resolveRole(address, contract);
+        await this.onConnected(address, role);
+        return { address, role };
+      },
+
+      async connect(preferredAddress) {
+        if (this._connecting) return;
+        this.setConnectLoading(true);
+        try {
+          const { address, role } = await this.establishSession(preferredAddress);
+          const label = KMSRouter.demoAccountLabel(address);
+          this.toast(
+            label
+              ? `${label} · ${KMSRouter.roleMeta(role).label}`
+              : KMSRouter.roleMeta(role).label
+          );
+        } catch (err) {
+          this.showConnect();
+          KMSCore.disconnectWallet();
+          this.toast(KMSCore.userError(err));
+        } finally {
+          this.setConnectLoading(false);
+        }
+      },
+
+      async disconnect() {
+        if (this._disconnecting) return;
+        this._disconnecting = true;
+        try {
+          this.address = null;
+          this.role = null;
+          this.stopAccountWatch();
+          this.unmountActive();
+          KMSCore.disconnectWallet();
+          await KMSCore.revokeSiteAccess();
+          this.showConnect();
+          this.toast("연결 해제 — MetaMask에서 계정을 바꾼 뒤 다시 연결하세요");
+        } finally {
+          this._disconnecting = false;
+        }
+      },
+
+      scheduleAccountSwitch(nextAddress) {
+        if (this._accountChangeTimer) clearTimeout(this._accountChangeTimer);
+        this._accountChangeTimer = setTimeout(() => {
+          this._accountChangeTimer = null;
+          this.reconnectWithAccount(nextAddress);
+        }, 150);
+      },
+
+      async reconnectWithAccount(address) {
+        if (this._connecting || this._disconnecting) return;
+        this.setConnectLoading(true);
+        try {
+          const preferred =
+            window.ethereum?.selectedAddress || address;
+          const { address: connected, role } = await this.establishSession(preferred);
+          const label = KMSRouter.demoAccountLabel(connected);
+          this.toast(
+            label
+              ? `${label} · ${KMSRouter.roleMeta(role).label}`
+              : KMSRouter.roleMeta(role).label
+          );
+        } catch (err) {
+          this.showConnect();
+          KMSCore.disconnectWallet();
+          this.toast(KMSCore.userError(err));
+        } finally {
+          this.setConnectLoading(false);
+        }
+      },
+
+      init() {
+        document.getElementById("hintRequester").textContent =
+          `Requester: ${KMS_CONFIG.demoAccounts.requester}`;
+
+        this.els.btnConnect.addEventListener("click", () => this.connect());
+        this.els.btnConnectMain.addEventListener("click", () => this.connect());
+        this.els.btnDisconnect.addEventListener("click", () => this.disconnect());
+        this.els.btnResync.addEventListener("click", async () => {
+          const selected = window.ethereum?.selectedAddress;
+          if (selected) {
+            await this.reconnectWithAccount(selected);
+          } else {
+            await this.connect();
+          }
+        });
+
+        if (window.ethereum) {
+          window.ethereum.on("accountsChanged", (accounts) => {
+            if (this._connecting || this._disconnecting) return;
+            if (!accounts?.length) {
+              if (this.address) {
+                this.address = null;
+                this.role = null;
+                this.stopAccountWatch();
+                this.unmountActive();
+                KMSCore.disconnectWallet();
+                this.showConnect();
+              }
+              return;
+            }
+            if (!this.address) return;
+            const next = (window.ethereum.selectedAddress || accounts[0]).toLowerCase();
+            if (next === this.address.toLowerCase()) return;
+            this.scheduleAccountSwitch(accounts[0]);
+          });
+          window.ethereum.on("chainChanged", () => location.reload());
+        }
+      },
+    };
+
+    AppShell.init();
+  </script>
+</body>
+</html>

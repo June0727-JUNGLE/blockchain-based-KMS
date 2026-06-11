@@ -89,6 +89,44 @@ describe("KMS", function () {
     });
   });
 
+  const NORMAL_DOCUMENT_ID = ethers.id("notice-2024");
+
+  describe("logDocumentAccess", function () {
+    beforeEach(async function () {
+      await kms.connect(admin).grantPermission(requester.address);
+    });
+
+    it("emits DocumentAccessLogged for whitelisted employee", async function () {
+      await expect(
+        kms.connect(requester).logDocumentAccess(NORMAL_DOCUMENT_ID)
+      )
+        .to.emit(kms, "DocumentAccessLogged")
+        .withArgs(requester.address, NORMAL_DOCUMENT_ID);
+    });
+
+    it("does not create a request or increment nextRequestId", async function () {
+      await kms.connect(requester).logDocumentAccess(NORMAL_DOCUMENT_ID);
+      expect(await kms.nextRequestId()).to.equal(0);
+    });
+
+    it("reverts when caller is not whitelisted", async function () {
+      await expect(
+        kms.connect(outsider).logDocumentAccess(NORMAL_DOCUMENT_ID)
+      )
+        .to.be.revertedWithCustomError(kms, "NotWhitelisted")
+        .withArgs(outsider.address);
+    });
+
+    it("reverts after whitelist revocation", async function () {
+      await kms.connect(admin).revokePermission(requester.address);
+      await expect(
+        kms.connect(requester).logDocumentAccess(NORMAL_DOCUMENT_ID)
+      )
+        .to.be.revertedWithCustomError(kms, "NotWhitelisted")
+        .withArgs(requester.address);
+    });
+  });
+
   describe("requestDocumentAccess", function () {
     beforeEach(async function () {
       await kms.connect(admin).grantPermission(requester.address);

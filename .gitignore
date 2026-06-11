@@ -145,6 +145,10 @@ vite.config.ts.timestamp-*
 # Hardhat
 artifacts/
 cache/
+accounts.txt
+
+# Local document storage (encrypted blobs are sensitive)
+storage/encrypted/
 
 #cursor
 .cursorignore

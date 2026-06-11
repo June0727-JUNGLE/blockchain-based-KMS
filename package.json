@@ -4,7 +4,10 @@
   "main": "hardhat.config.js",
   "scripts": {
     "compile": "hardhat compile",
-    "test": "hardhat test"
+    "test": "hardhat test",
+    "seed:storage": "node scripts/seed-storage.js",
+    "kms:server": "node offchain-kms/server.js",
+    "demo:reset": "bash scripts/demo-reset.sh"
   },
   "keywords": [],
   "author": "",
@@ -16,6 +19,8 @@
     "hardhat": "^2.28.6"
   },
   "dependencies": {
-    "@openzeppelin/contracts": "^5.6.1"
+    "@openzeppelin/contracts": "^5.6.1",
+    "cors": "^2.8.5",
+    "express": "^5.1.0"
   }
 }

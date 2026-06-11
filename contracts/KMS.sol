@@ -46,6 +46,7 @@ contract KMS is AccessControl {
         address indexed requester,
         bytes32 indexed documentId
     );
+    event DocumentAccessLogged(address indexed accessor, bytes32 indexed documentId);
 
     error NotWhitelisted(address account);
     error AlreadyWhitelisted(address account);
@@ -116,7 +117,18 @@ contract KMS is AccessControl {
     }
 
     /**
-     * @notice Whitelisted party initiates an on-chain decryption-access request.
+     * @notice Records on-chain access to a normal (non-multisig) document.
+     * @param documentId Off-chain asset identifier (audit trail only; no approval flow).
+     */
+    function logDocumentAccess(bytes32 documentId) external {
+        if (!_whitelist[msg.sender]) {
+            revert NotWhitelisted(msg.sender);
+        }
+        emit DocumentAccessLogged(msg.sender, documentId);
+    }
+
+    /**
+     * @notice Whitelisted party initiates an on-chain decryption-access request (secure documents).
      * @param documentId Off-chain asset identifier (e.g. hash of Encrypted_Log.dat metadata).
      */
     function requestDocumentAccess(bytes32 documentId) external returns (uint256 requestId) {

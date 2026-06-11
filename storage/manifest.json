@@ -1,0 +1,32 @@
+{
+  "documents": [
+    {
+      "id": "doc-001",
+      "title": "2024년 사내 공지",
+      "tier": "normal",
+      "documentId": "0xc1fe86d44f154422ccafde84bbfbd667de81d731bdab4ddb8ce796cf67e851d7",
+      "path": "plain/notice-2024.txt"
+    },
+    {
+      "id": "doc-002",
+      "title": "인사 규정 요약",
+      "tier": "normal",
+      "documentId": "0x5e1242a0e0b83ec48229caa10163df5fc40b08b031e9a3a94ba466b7ceb0ce57",
+      "path": "plain/hr-policy-summary.txt"
+    },
+    {
+      "id": "doc-003",
+      "title": "Encrypted_Log.dat#vehicle-001",
+      "tier": "secure",
+      "documentId": "0xd1ee64f1fdc034dff71467f8dcd71921997751a511c9c0912591331c2a734290",
+      "path": "encrypted/vehicle-001.log.enc"
+    },
+    {
+      "id": "doc-004",
+      "title": "Encrypted_Log.dat#vehicle-002",
+      "tier": "secure",
+      "documentId": "0x148364585784579a0054261c622f79165ffe440541cb6b384fb5ce117d405001",
+      "path": "encrypted/vehicle-002.log.enc"
+    }
+  ]
+}
